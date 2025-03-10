@@ -4,48 +4,52 @@ import 'dart:io';
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:gal/gal.dart';
+import 'package:flutter/services.dart';
+import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
+import 'package:scan_app/model/recent.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uri_to_file/uri_to_file.dart';
 
 class ImageController extends ChangeNotifier{
 
-  File? currentImage;
+  Recent? currentImage;
 
   bool isImageRecent = false;
   String pathImage = "pathImage";
-  List<String> pathImagesRecent = [];
+  List<Recent> pathImagesRecent = [];
 
-  savePathImage(String paths) async{
-    pathImagesRecent.insert(0, paths);
+  saveLocalImage(Recent recent) async{
+    pathImagesRecent.insert(0, recent);
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setStringList(pathImage, pathImagesRecent);
+    prefs.setString(pathImage, Recent.toListJson(pathImagesRecent));
   }
 
-  getPathImage() async{
+  getLocalImage() async{
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String>? paths = prefs.getStringList(pathImage);
-    if(paths != null){
-      isImageRecent = true;
-      pathImagesRecent = paths;
-      currentImage = File(paths.first);
-      notifyListeners();
-    }
+    String? json = prefs.getString(pathImage);
+    if(json == null || json.isEmpty) return;
+
+    isImageRecent = true;
+    pathImagesRecent = Recent.fromListJson(json);
+    currentImage = pathImagesRecent.first;
+    notifyListeners();
+
   }
 
-  clearPathImage([String? path]) async{
+  clearPathImage([Recent? recent]) async{
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    if(path != null){
-      File(path).delete();
-      pathImagesRecent.remove(path);
+    if(recent != null){
+      deleteImageFromGallery(recent);
+      pathImagesRecent.remove(recent);
     }else{
       for (var path in pathImagesRecent) {
-        File(path).deleteSync();
+        deleteImageFromGallery(path);
       }
       pathImagesRecent.clear();
     }
-    prefs.setStringList(pathImage, pathImagesRecent);
-    notifyListeners();
+    prefs.setString(pathImage, Recent.toListJson(pathImagesRecent));
+    setCurrentImage(pathImagesRecent.firstOrNull);
   }
 
 
@@ -54,37 +58,55 @@ class ImageController extends ChangeNotifier{
       noOfPages: 1,
       isGalleryImportAllowed: true,
     );
-    if(imagesPath?.isNotEmpty == true){
-      setImage(imagesPath!.first, true);
-    }
+    if(imagesPath?.isNotEmpty != true) return;
+
+    Recent? recent = await saveImage(imagesPath!.first);
+    if(recent == null) return;
+    setCurrentImage(recent);
   }
 
-  void saveImage(BuildContext context, String path) async{
-    await Gal.putImage(path);
-    if(!context.mounted) return;
+  Future<Recent?> saveImage(String pathLocal) async{
+    var response = await ImageGallerySaverPlus.saveFile(pathLocal);
 
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text("Lưu ảnh thành công",
-        style: TextStyle(color: Colors.white),),
-      duration: Duration(milliseconds: 1000),
-    ));}
+    File(pathLocal).deleteSync();
+
+    String? uriRes = response['filePath'];
+    if(uriRes == null) return null;
+    File fileGallery = await toFile(uriRes);
+    if(!(await fileGallery.exists())) return null;
+
+    var recent = Recent(
+        uri: uriRes,
+        path: fileGallery.path,
+        createdDate: DateTime.now().toString()
+    );
+    saveLocalImage(recent);
+    return recent;
+  }
 
   void closeImage() {
     currentImage = null;
     notifyListeners();
   }
 
-  void setImage(String path, [bool? savePath]) {
-    if(savePath == true) {
-      savePathImage(path);
-    }
-
+  void setCurrentImage(Recent? recent) {
     isImageRecent = false;
-    currentImage = File(path);
+    currentImage = recent;
     notifyListeners();
   }
 
   void shareImage(String path) {
     Share.shareXFiles([XFile(path)]);
+  }
+
+  Future<bool> deleteImageFromGallery(Recent recent) async {
+    try {
+      final bool success = await MethodChannel('gallery_manager')
+          .invokeMethod('deleteImage', {'imageUri': recent.uri});
+      return success;
+    } catch (e) {
+      print("Lỗi khi xóa ảnh: $e");
+      return false;
+    }
   }
 }

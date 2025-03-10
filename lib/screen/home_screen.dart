@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:scan_app/screen/image_controller.dart';
 
@@ -18,7 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     controller.addListener(updateUI);
-    controller.getPathImage();
+    controller.getLocalImage();
     super.initState();
   }
   @override
@@ -41,10 +43,15 @@ class _HomeScreenState extends State<HomeScreen> {
           Positioned.fill(
             child: Container(
                 child: controller.currentImage != null
-                    ? Image.file(controller.currentImage!, fit: BoxFit.contain,)
+                    ? Image.file(File(controller.currentImage!.path), fit: BoxFit.contain,)
                     : Center(
-                  child: Text("Chưa có ảnh",
-                    style: TextStyle(color: Colors.white),
+                  child: GestureDetector(
+                    onTap: (){
+                      controller.scanImage();
+                    },
+                    child: Text("Chưa có ảnh quét ngay",
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
                 )
             ),
@@ -62,7 +69,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       return Center(
                           child: GestureDetector(
                             onTap: (){
-                              showModalBottomSheet(context: context, builder: (context) => ImageRecentWidget(controller));
+                              showModalBottomSheet(
+                                  context: context,
+                                  backgroundColor: Colors.transparent,
+                                  shape: const RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
+                                  ),
+                                  builder: (context) => ImageRecentWidget(controller)
+                              );
                             },
                             child: Container(
                                 padding: EdgeInsetsDirectional.symmetric(vertical: 5, horizontal: 20),
@@ -87,15 +101,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     mainAxisSize: MainAxisSize.max,
                     children: [
                       if(controller.currentImage != null)
-                        ...[
-                          IconButton(
-                              onPressed: (){
-                                controller.closeImage();
-                              },
-                              icon: Icon(Icons.close, color: Colors.white, size: 35,)
-                          ),
-                          SizedBox(width: 40,)
-                        ],
+                        IconButton(
+                            onPressed: (){
+                              controller.closeImage();
+                            },
+                            icon: Icon(Icons.close, color: Colors.white, size: 35,)
+                        ),
                       GestureDetector(
                         onTap: (){
                           controller.scanImage();
@@ -120,23 +131,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       if(controller.currentImage != null)
-                        ...[
-                          IconButton(
-                              onPressed: (){
-                                controller.saveImage(context, controller.currentImage!.path);
-                              },
-                              icon: Icon(Icons.download, color: Colors.white, size: 35,)
-                          ),
-                          SizedBox(
-                            width: 40,
-                            child: IconButton(
-                                onPressed: (){
-                                  controller.shareImage(controller.currentImage!.path);
-                                },
-                                icon: Icon(Icons.send, color: Colors.amber, size: 35,)
-                            ),
-                          ),
-                        ]
+                        IconButton(
+                            onPressed: (){
+                              controller.shareImage(controller.currentImage!.path);
+                            },
+                            icon: Icon(Icons.send, color: Colors.amber, size: 35,)
+                        ),
                     ],
                   ),
                 ),

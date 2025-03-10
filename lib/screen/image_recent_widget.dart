@@ -2,6 +2,7 @@
 import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'package:flutter/material.dart';
+import 'package:scan_app/model/recent.dart';
 import 'package:scan_app/screen/image_controller.dart';
 
 class ImageRecentWidget extends StatefulWidget {
@@ -31,14 +32,24 @@ class _ImageRecentWidgetState extends State<ImageRecentWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black.withValues(alpha: 0.9),
-      body: Stack(
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
+        color: Color(-15066598),
+      ),
+      child: Stack(
         children: [
           Column(
             children: [
               SizedBox(height: 10,),
-              Container(width: 100, height: 5, color: Colors.red,),
+              Container(
+                width: 100,
+                height: 5,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: Colors.red,
+                ),
+              ),
               SizedBox(height: 10,),
               Expanded(
                 child: widget.controller.pathImagesRecent.isEmpty
@@ -46,12 +57,13 @@ class _ImageRecentWidgetState extends State<ImageRecentWidget> {
                     : ListView.separated(
                   itemCount: widget.controller.pathImagesRecent.length,
                   itemBuilder: (context, index) {
-                    String pathName = widget.controller.pathImagesRecent[index];
+                    Recent item = widget.controller.pathImagesRecent[index];
+                    String pathName = item.path;
                     File image = File(pathName);
                     return GestureDetector(
                       behavior: HitTestBehavior.translucent,
                       onTap: (){
-                        widget.controller.setImage(pathName);
+                        widget.controller.setCurrentImage(item);
                         Navigator.pop(context);
                       },
                       child: Container(
@@ -69,7 +81,13 @@ class _ImageRecentWidgetState extends State<ImageRecentWidget> {
                                 child: Image.file(image, )
                             ),
                             SizedBox(width: 20,),
-                            Expanded(child: Text(path.basename(pathName), style: TextStyle(color: Colors.white),)),
+                            Expanded(child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(path.basename(pathName), style: TextStyle(color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis,),
+                                Text(item.createdDate, style: TextStyle(color: Colors.white60), maxLines: 1, overflow: TextOverflow.ellipsis,),
+                              ],
+                            )),
 
                             PopupMenuButton(
                                 offset: const Offset(-20, 50),
@@ -79,37 +97,13 @@ class _ImageRecentWidgetState extends State<ImageRecentWidget> {
                                     PopupMenuItem(
                                       child: const Row(
                                         children: [
-                                          Icon(Icons.download),
-                                          SizedBox(width: 5,),
-                                          Text("Lưu", style: TextStyle(color: Colors.black),)
-                                        ],
-                                      ),
-                                      onTap: () {
-                                        widget.controller.saveImage(context, pathName);
-                                      },
-                                    ),
-                                    PopupMenuItem(
-                                      child: const Row(
-                                        children: [
-                                          Icon(Icons.share),
-                                          SizedBox(width: 5,),
-                                          Text("Chia sẻ", style: TextStyle(color: Colors.black),)
-                                        ],
-                                      ),
-                                      onTap: () {
-                                        widget.controller.shareImage(pathName);
-                                      },
-                                    ),
-                                    PopupMenuItem(
-                                      child: const Row(
-                                        children: [
                                           Icon(Icons.delete_outline_outlined, color: Colors.black,),
                                           SizedBox(width: 5,),
                                           Text("Xóa", style: TextStyle(color: Colors.black),)
                                         ],
                                       ),
                                       onTap: () {
-                                        widget.controller.clearPathImage(pathName);
+                                        widget.controller.clearPathImage(item);
                                       },
                                     ),
                                     PopupMenuItem(
@@ -122,6 +116,18 @@ class _ImageRecentWidgetState extends State<ImageRecentWidget> {
                                       ),
                                       onTap: () {
                                         widget.controller.clearPathImage();
+                                      },
+                                    ),
+                                    PopupMenuItem(
+                                      child: const Row(
+                                        children: [
+                                          Icon(Icons.share),
+                                          SizedBox(width: 5,),
+                                          Text("Chia sẻ", style: TextStyle(color: Colors.black),)
+                                        ],
+                                      ),
+                                      onTap: () {
+                                        widget.controller.shareImage(pathName);
                                       },
                                     ),
                                   ];
